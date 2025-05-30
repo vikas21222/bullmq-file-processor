@@ -1,0 +1,20 @@
+{
+  "name": "bullmq-file-processor",
+  "version": "1.0.0",
+  "description": "This project demonstrates how to build a scalable, asynchronous file processing pipeline using BullMQ, S3, Sequelize, and PostgreSQL.",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Vikas Yadav",
+  "license": "ISC",
+  "dependencies": {
+    "bullmq": "^5.53.0",
+    "dotenv": "^16.5.0",
+    "expressjs": "^1.0.1",
+    "multer": "^2.0.0",
+    "pg": "^8.16.0",
+    "sequelize": "^6.37.7"
+  }
+}
