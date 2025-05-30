@@ -9,7 +9,7 @@ const FILE_UPLOAD_STATUSES = {
   failed: 'failed',
 };
 
-const FILE_UPLOAD_TYPES = {
+const FILE__SCHEMA_NAME = {
  
   bse_scheme: 'BSE_SCHEME',
  
@@ -43,7 +43,7 @@ FileUpload.init({
     defaultValue: 'document'
   },
   schema_name: {
-    type: DataTypes.ENUM(...Object.values(FILE_UPLOAD_TYPES)),
+    type: DataTypes.ENUM(...Object.values(FILE__SCHEMA_NAME)),
     allowNull: false,
   },
   s3_location: {
@@ -82,4 +82,4 @@ FileUpload.init({
 
 export default FileUpload;
 
-export { FILE_UPLOAD_TYPES, FILE_UPLOAD_STATUSES };
+export { FILE__SCHEMA_NAME, FILE_UPLOAD_STATUSES };
