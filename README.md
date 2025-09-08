@@ -8,7 +8,7 @@ This project demonstrates how to build a scalable, asynchronous file processing 
 - Store files in S3
 - Track file processing status in PostgreSQL
 - Background validation and mapping jobs using BullMQ
-- Final data storage in a production table
+- Final data storage in a  table
 
 ## 📦 Tech Stack
 
