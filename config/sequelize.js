@@ -25,11 +25,6 @@ options.pool = {
   idle: 10000,
 };
 
-// Override the logging function to use our own logger
-options.logging = (msg) => {
-  LogFactory.getLogger().info(msg);
-};
-
 options.benchmark = true;
 
 

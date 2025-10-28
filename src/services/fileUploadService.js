@@ -1,45 +1,52 @@
 import FileUpload, { FILE_UPLOAD_STATUSES } from '../models/fileUpload.js';
-
-import CreateRtaDumpRowsJob from '../../lib/jobs/create_rta_dump_rows_job.js';
 import { extname } from 'path';
 import { readFile } from 'fs/promises';
-import s3Utility from '../utils/s3Utility.js';
+import CreateDumpTableJob from '../jobs/createDumpTableJob.js';
+import s3Service from './s3Service.js';
 
 export const ALLOWED_FILE_EXTENSIONS = {
-  'BSE_SCHEME': ['xlsx', 'dbf', 'csv']
-  //more can be added 
- 
+  BSE_SCHEME: ['csv'],
+  // add more schemas => allowed extensions as needed
 };
 
 class FileUploadService {
   constructor(filePath, fileName, schemaName) {
     this.filePath = filePath;
     this.fileName = fileName;
-    this.schemaName = schemaName;
+    this.schemaName = schemaName ? String(schemaName) : '';
     this.fileType = this._getFileType(fileName);
   }
 
- 
   async process(sqlTransaction = null) {
-    const existingFile = await this.getFileUpload(sqlTransaction);
+    if (!this.schemaName) {
+      throw new Error('upload type (schemaName) is required');
+    }
 
+    const existingFile = await this.getFileUpload(sqlTransaction);
     if (existingFile) {
       throw new Error(`File ${this.fileName} with upload type ${this.schemaName} already exists`);
     }
 
+    if (!this.fileType) {
+      throw new Error(`Unsupported file extension for file: ${this.fileName}`);
+    }
+
+    // If there are explicit allowed extensions for this schema, enforce them
+    const allowedForSchema = ALLOWED_FILE_EXTENSIONS[String(this.schemaName).toUpperCase()];
+    if (Array.isArray(allowedForSchema) && allowedForSchema.length > 0 && !allowedForSchema.includes(this.fileType)) {
+      throw new Error(`File type "${this.fileType}" is not allowed for schema "${this.schemaName}"`);
+    }
+
     const fileData = await readFile(this.filePath);
-    const { s3Location, s3Key } = await s3Utility.upload(
+
+    const { s3Location, s3Key } = await s3Service.uploadFileToS3(
       this.fileName,
       fileData,
-      this.schemaName.toLowerCase(),
+      String(this.schemaName).toLowerCase(),
     );
-
-    const dateUploaded = new Date();
-    dateUploaded.setHours(0, 0, 0, 0);
 
     const newFileUpload = await FileUpload.create({
       filename: this.fileName,
-      date_uploaded: dateUploaded,
       status: FILE_UPLOAD_STATUSES.pending,
       schema_name: this.schemaName,
       s3_location: s3Location,
@@ -47,52 +54,35 @@ class FileUploadService {
       file_type: this.fileType,
     }, {
       returning: true,
-      transaction: sqlTransaction
+      transaction: sqlTransaction,
     });
 
-    const job = new CreateRtaDumpRowsJob();
-    await job.add({fileUploadId:newFileUpload.id});
+    const job = new CreateDumpTableJob();
+    await job.add({ fileUploadId: newFileUpload.id });
 
     return newFileUpload;
   }
 
-  /**
-   * @param {*} sqlTransaction
-   * @returns {Promise<any>}
-   */
   async getFileUpload(sqlTransaction = null) {
     return FileUpload.findOne({
       where: {
         filename: this.fileName,
-        schema_name: this.schemaName
+        schema_name: this.schemaName,
       },
-      transaction: sqlTransaction
+      transaction: sqlTransaction,
     });
   }
 
-
   _getFileType(filename) {
-    const fileExtension = extname(filename).toLowerCase();
-
-    let fileType;
-    switch (fileExtension) {
-      case '.dbf':
-        fileType = 'dbf';
-        break;
-      case '.xlsx':
-        fileType = 'excel';
-        break;
-      case '.csv':
-        fileType = 'csv';
-        break;
+    if (!filename) return null;
+    const ext = extname(filename).toLowerCase().replace(/^\./, '');
+    switch (ext) {
+      case 'csv':
+        return 'csv';
       default:
-        fileType = null;
-        break;
+        return null;
     }
-
-    return fileType;
   }
-};
-
+}
 
 export default FileUploadService;

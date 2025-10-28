@@ -3,9 +3,6 @@ import FileUpload, { FILE_UPLOAD_STATUSES } from '../models/fileUpload.js';
 import BaseJob from './baseJob.js';
 import BscDumpRow from '../models/bscDumpRows.js';
 import CsvUtility from '../utils/csvUtility.js';
-import DbfUtility from '../utils/dbfUtility.js';
-import ExcelUtility from '../utils/excelUtility.js';
-import { LogFactory } from '../logger.js';
 
 const ROWS_MODEL_FIELD_MAPPER = {
   'BSC200': {
@@ -30,7 +27,6 @@ class CreateDumpTableJob extends BaseJob {
         attempts: 3,
       },
     });
-    this.logger = LogFactory.getLogger('CreateDumpTableJob');
   }
 
   async process(data) {
@@ -64,17 +60,9 @@ class CreateDumpTableJob extends BaseJob {
     const expectedHeaders = Object.values(this.fieldMapper);
     let totalDataRowsProcessed;
     switch (this.fileUpload.file_type) {
-      case 'excel':
-        const excelUtility = new ExcelUtility(this.dateColumns, expectedHeaders);
-        totalDataRowsProcessed = await excelUtility.readFileFromS3(this.fileUpload.s3_key, this.bulkCreateDumpTable.bind(this));
-        break;
       case 'csv':
         const csvUtility = new CsvUtility(this.dateColumns, expectedHeaders);
         totalDataRowsProcessed = await csvUtility.readFileFromS3(this.fileUpload.s3_key, this.bulkCreateDumpTable.bind(this));
-        break;
-      case 'dbf':
-        const dbfUtility = new DbfUtility(this.dateColumns, expectedHeaders);
-        totalDataRowsProcessed = await dbfUtility.readFileFromS3(this.fileUpload.s3_key, this.bulkCreateDumpTable.bind(this));
         break;
       default:
         throw new Error(`Unsupported file type: ${this.fileUpload.file_type}`);

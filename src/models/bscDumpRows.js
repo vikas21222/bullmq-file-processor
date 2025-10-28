@@ -8,7 +8,7 @@ class BscDumpRow extends Model {
   }
 }
 
-export const RTA_SIP_DUMP_ROW_STATUSES = {
+export const BSE_DUMP_ROW_STATUSES = {
   PENDING: 'pending',
   PROCESSING: 'processing',
   FAILED: 'failed',
@@ -24,9 +24,9 @@ BscDumpRow.init(
       autoIncrement: true
     },
     status: {
-      type: DataTypes.ENUM(...Object.values(RTA_SIP_DUMP_ROW_STATUSES)),
+      type: DataTypes.ENUM(...Object.values(BSE_DUMP_ROW_STATUSES)),
       allowNull: false,
-      defaultValue: RTA_SIP_DUMP_ROW_STATUSES.PENDING,
+      defaultValue: BSE_DUMP_ROW_STATUSES.PENDING,
     },
     request_id: {
       type: DataTypes.BIGINT,
@@ -43,27 +43,6 @@ BscDumpRow.init(
     row_num: {
       type: DataTypes.STRING,
       allowNull: false,
-    },
-    rta_sip_detail_id: {
-      type: DataTypes.BIGINT,
-    },
-    amc_code: {
-      type: DataTypes.STRING,
-      allowNull: true
-    },
-    folio_number: {
-      type: DataTypes.STRING,
-      allowNull: true
-    },
-    rta_scheme_code: {
-      type: DataTypes.STRING,
-      allowNull: true
-    },
-    registration_number: {
-      type: DataTypes.STRING,
-    },
-    amount: {
-      type: DataTypes.STRING,
     },
     remarks: {
       type: DataTypes.STRING,
@@ -87,18 +66,7 @@ BscDumpRow.init(
     modelName: 'BscDumpRow',
     tableName: 'rta_sip_dump_rows',
     underscored: true,
-    indexes: [
-      {
-        unique: true,
-        fields: ['request_id', 'request_type', 'row_num'],
-      },
-      {
-        fields: ['registration_number'],
-      },
-      {
-        fields: ['rta_sip_detail_id'],
-      },
-    ],
+    timestamps: true,
   }
 );
 

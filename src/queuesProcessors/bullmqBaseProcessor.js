@@ -1,4 +1,3 @@
-import { LogFactory } from '../../lib/logger.js';
 import { Worker } from 'bullmq';
 import redisClient from '../../config/redis.js';
 
@@ -10,7 +9,6 @@ class BullmqBaseProcessor {
 
     this.worker = null;
     this.queueName = options.queueName;
-    this.logger = LogFactory.getLogger(`BullmqBaseProcessor:${this.queueName}`);
     const defaultWorkerOptions = {
       autorun: true,
       connection: redisClient,

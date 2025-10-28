@@ -42,6 +42,5 @@ const fileUploadRouter = express.Router();
 const controller = new FileUploadController();
 fileUploadRouter.get('/', controller.index);
 fileUploadRouter.post('/upload', uploadSingle.single('file'), controller.create);
-fileUploadRouter.get('/download-file/:id', controller.downloadFile);
 
 export default s2sFileRouter;
