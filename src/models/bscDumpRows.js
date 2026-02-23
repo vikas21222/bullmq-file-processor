@@ -64,7 +64,7 @@ BscDumpRow.init(
   {
     sequelize,
     modelName: 'BscDumpRow',
-    tableName: 'rta_sip_dump_rows',
+    tableName: 'bsc_dump_rows',
     underscored: true,
     timestamps: true,
   }

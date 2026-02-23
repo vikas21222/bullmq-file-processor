@@ -99,6 +99,9 @@ class CsvUtility {
   _validateHeaders(headers) {
     if (!headers.length > 0) throw new Error('No headers found');
 
+    // If no expected headers are provided, skip strict validation
+    if (!Array.isArray(this.expectedHeaders) || this.expectedHeaders.length === 0) return;
+
     const missingHeaders = this.expectedHeaders.filter(header => !headers.includes(header));
 
     if (missingHeaders.length > 0) {
@@ -123,8 +126,23 @@ class CsvUtility {
       }
 
       if (this.dateColumns.includes(header) && typeof cellValue === 'string') {
-        // * input format of date is dd/mm/yyyy, typeof string
-        rowJson[header] = new Date(dateUtility.convertDateFormat(cellValue));
+        // * input formats supported: dd/mm/yyyy, d/m/yyyy, yyyy-mm-dd, etc.
+        try {
+          const converted = dateUtility.convertDateFormat(cellValue);
+          if (!converted) {
+            rowJson[header] = null;
+          } else {
+            const d = new Date(converted);
+            if (Number.isNaN(d.getTime())) {
+              rowJson[header] = null;
+            } else {
+              rowJson[header] = d;
+            }
+          }
+        } catch (err) {
+          this.logger.warn(`Failed to parse date for header ${header}: ${cellValue}`);
+          rowJson[header] = null;
+        }
 
         continue;
       }

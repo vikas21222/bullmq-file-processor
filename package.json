@@ -5,16 +5,29 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "nodemon src/app.js",
+    "test": "jest --runInBand",
+    "db:migrate": "npx sequelize-cli db:migrate --config ./config/database-connection.js --migrations-path ./migrations",
+    "db:migrate:undo": "npx sequelize-cli db:migrate:undo --config ./config/database-connection.js --migrations-path ./migrations"
   },
   "author": "Vikas Yadav",
   "license": "ISC",
   "dependencies": {
+    "@bull-board/api": "^4.0.0",
+    "@bull-board/express": "^4.0.0",
     "bullmq": "^5.53.0",
     "dotenv": "^16.5.0",
-    "expressjs": "^1.0.1",
+    "express": "^4.18.2",
+    "express-basic-auth": "^1.2.0",
     "multer": "^2.0.0",
     "pg": "^8.16.0",
     "sequelize": "^6.37.7"
+  }
+  ,
+  "devDependencies": {
+    "nodemon": "^2.0.22",
+    "jest": "^29.6.1",
+    "supertest": "^6.3.3",
+    "sequelize-cli": "^6.6.0"
   }
 }
