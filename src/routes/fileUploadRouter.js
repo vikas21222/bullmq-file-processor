@@ -3,16 +3,30 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import UnprocessableError from '../utils/errors/UnprocessableError.js';
+import { mkdirSync } from 'fs';
+import { isTestEnv } from '../utils/env.js';
 
 // use disk storage for multer; restrict to CSV uploads only
-const storage = multer.diskStorage({
-  destination: 'uploads/',
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const extname = path.extname(file.originalname);
-    cb(null, file.fieldname + '-' + uniqueSuffix + extname);
+// In test mode, use memory storage to avoid file I/O
+let storage;
+if (isTestEnv()) {
+  storage = multer.memoryStorage();
+} else {
+  // Try to create uploads directory if it doesn't exist
+  try {
+    mkdirSync('uploads/', { recursive: true });
+  } catch (err) {
+    console.error('Warning: could not create uploads directory:', err.message);
   }
-});
+  storage = multer.diskStorage({
+    destination: 'uploads/',
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const extname = path.extname(file.originalname);
+      cb(null, file.fieldname + '-' + uniqueSuffix + extname);
+    }
+  });
+}
 
 const fileFilter = (req, file, cb) => {
   const ext = path.extname(file.originalname).replace('.', '').toLowerCase();

@@ -3,6 +3,7 @@ import express, { json } from 'express';
 import CreateDumpTableQueueProcessor from './queuesProcessors/createDumpTableQueueProcessor';
 import uploadRoute from './routes/fileUploadRouter';
 import bullBoardRoute from './routes/bullBoard.js';
+import { isNotTestEnv } from './utils/env.js';
 
 const app = express();
 app.use(json());
@@ -17,7 +18,7 @@ const queueProcessors = [
 ];
 
 // In test environment we avoid starting queue workers and the HTTP server
-if (process.env.NODE_ENV !== 'test') {
+if (isNotTestEnv()) {
   queueProcessors.forEach((Processor) => {
     const processorInstance = new Processor();
     processorInstance.setupWorker();

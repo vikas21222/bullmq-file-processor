@@ -1,5 +1,9 @@
 import { Sequelize } from 'sequelize';
 import env from '../config/env.js';
+import { LogFactory } from '../lib/logger.js';
+
+// Avoid making DB connections during tests to prevent open handles
+import { isNotTestEnv } from '../src/utils/env.js';
 
 const options = {
   port: env.DB_PSQL_PORT,
@@ -30,11 +34,14 @@ options.benchmark = true;
 
 const sequelize = new Sequelize(options);
 
-sequelize.authenticate().then(() => {
-  console.log('PG Database Connection has been established successfully.');
-}).catch((error) => {
-  console.log('Unable to connect to the PG Database: ', error);
-});
+
+if (isNotTestEnv()) {
+  sequelize.authenticate().then(() => {
+    console.log('PG Database Connection has been established successfully.');
+  }).catch((error) => {
+    console.log('Unable to connect to the PG Database: ', error);
+  });
+}
 
 
 

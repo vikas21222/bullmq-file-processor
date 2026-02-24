@@ -1,9 +1,11 @@
 import { Queue } from 'bullmq';
 import redisClient from '../../config/redis.js';
+import { LogFactory } from '../../lib/logger.js';
 
 class BaseJob {
   constructor(options) {
     this.queueName = options.queueName;
+    this.logger = LogFactory.getLogger(this.constructor.name);
     const defaultJobOptions={
       backoff: {
         type: 'exponential',
@@ -27,7 +29,7 @@ class BaseJob {
       const queue = new Queue(this.queueName, { connection: redisClient });
       await queue.add(this.constructor.name, data, this.JOB_OPTIONS);
     } catch (error) {
-      logger.error(`Failed to add job to the queue ${this.queueName}: ${error.message}`);
+      this.logger.error(`Failed to add job to the queue ${this.queueName}: ${error.message}`);
     }
   }
 

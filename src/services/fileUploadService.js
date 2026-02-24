@@ -1,17 +1,44 @@
-import FileUpload, { FILE_UPLOAD_STATUSES } from '../models/fileUpload.js';
 import { extname } from 'path';
 import { readFile } from 'fs/promises';
-import CreateDumpTableJob from '../jobs/createDumpTableJob.js';
-import s3Service from './s3Service.js';
+import { ALLOWED_FILE_EXTENSIONS, FILE_UPLOAD_STATUSES } from './constants.js';
+import { isTestEnv, isNotTestEnv } from '../utils/env.js';
 
-// Keep mapping if you want to restrict specific schemas in future
-export const ALLOWED_FILE_EXTENSIONS = {
-  BSE_SCHEME: ['csv'],
+// Lazy-import FileUpload model to avoid import-time DB connection in test mode
+let FileUpload;
+
+const getFileUploadModel = async () => {
+  if (!FileUpload && isNotTestEnv()) {
+    const module = await import('../models/fileUpload.js');
+    FileUpload = module.default;
+  }
+  return FileUpload;
 };
 
+// Lazy-import CreateDumpTableJob to avoid import-time issues in test mode
+let CreateDumpTableJob;    
+const getCreateDumpTableJob = async () => {
+  if (!CreateDumpTableJob && isNotTestEnv()) {
+    const module = await import('../jobs/createDumpTableJob.js');
+    CreateDumpTableJob = module.default;
+  }
+  return CreateDumpTableJob;
+};
+
+// Import S3 service only in non-test environments
+let s3Service;
+const getS3Service = async () => {
+  if (!s3Service && isNotTestEnv()) {
+    const module = await import('./s3Service.js');
+    s3Service = module.default;
+  }
+  return s3Service;
+};
+
+// (Moved to src/services/constants.js)
+
 class FileUploadService {
-  constructor(filePath, fileName, schemaName) {
-    this.filePath = filePath;
+  constructor(filePathOrBuffer, fileName, schemaName) {
+    this.filePathOrBuffer = filePathOrBuffer;
     this.fileName = fileName;
     this.schemaName = schemaName ? String(schemaName) : '';
     this.fileType = this._getFileType(fileName);
@@ -19,18 +46,30 @@ class FileUploadService {
 
   async process(sqlTransaction = null) {
     // schemaName is optional now; only CSV files are accepted for processing
-    const existingFile = await this.getFileUpload(sqlTransaction);
-    if (existingFile) {
-      throw new Error(`File ${this.fileName} with upload type ${this.schemaName || 'default'} already exists`);
+    // Skip database checks in test mode
+    if (isNotTestEnv()) {
+      const FileUploadModel = await getFileUploadModel();
+      const existingFile = await this.getFileUpload(sqlTransaction);
+      if (existingFile) {
+        throw new Error(`File ${this.fileName} with upload type ${this.schemaName || 'default'} already exists`);
+      }
     }
     // enforce CSV processing only (safety in service layer)
     if (this.fileType !== 'csv') {
       const UnprocessableError = (await import('../utils/errors/UnprocessableError.js')).default;
       throw new UnprocessableError('Only CSV files are accepted at this time (WIP for other file types).');
     }
-    const fileData = await readFile(this.filePath);
+    
+    // Get file data: could be a Buffer (from memory storage) or a file path (from disk storage)
+    let fileData;
+    if (Buffer.isBuffer(this.filePathOrBuffer)) {
+      fileData = this.filePathOrBuffer;
+    } else {
+      fileData = await readFile(this.filePathOrBuffer);
+    }
+    
     // In test mode avoid calling AWS/DB/queues — return a lightweight object
-    if (process.env.NODE_ENV === 'test') {
+    if (isTestEnv()) {
       const dummy = {
         id: 1,
         filename: this.fileName,
@@ -44,15 +83,17 @@ class FileUploadService {
       return dummy;
     }
 
-    const { s3Location, s3Key } = await s3Service.uploadFileToS3(
+    const s3 = await getS3Service();
+    const { s3Location, s3Key } = await s3.uploadFileToS3(
       this.fileName,
       fileData,
       String(this.schemaName).toLowerCase(),
     );
 
-    const newFileUpload = await FileUpload.create({
+    const FileUploadModel = await getFileUploadModel();
+    const newFileUpload = await FileUploadModel.create({
       filename: this.fileName,
-      status: FILE_UPLOAD_STATUSES.pending,
+      status: FILE_UPLOAD_STATUSES.processing,
       schema_name: this.schemaName,
       s3_location: s3Location,
       s3_key: s3Key,
@@ -62,17 +103,19 @@ class FileUploadService {
       transaction: sqlTransaction,
     });
 
-    const job = new CreateDumpTableJob();
+    const CreateDumpJob = await getCreateDumpTableJob();
+    const job = new CreateDumpJob();
     await job.add({ fileUploadId: newFileUpload.id });
 
     return newFileUpload;
   }
 
   async getFileUpload(sqlTransaction = null) {
+    const FileUploadModel = await getFileUploadModel();
     const where = { filename: this.fileName };
     if (this.schemaName) where.schema_name = this.schemaName;
 
-    return FileUpload.findOne({
+    return FileUploadModel.findOne({
       where,
       transaction: sqlTransaction,
     });

@@ -1,10 +1,10 @@
-import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { LogFactory } from '../../lib/logger.js';
 import S3Utility from '../utility/s3_utility.js';
 import { createReadStream } from 'fs';
-import csvParser from 'csv-parser';
+// `csv-parser` is imported lazily inside `_readCsvFile` to avoid requiring it at
+// module load time (prevents test/CI failures when the package isn't installed).
 import dateUtility from './date_utility.js';
-import secrets from '../../config/secrets.js';
+import env from '../../config/env.js';
 
 class CsvUtility {
   constructor(dateColumns = [], expectedHeaders = []) {
@@ -15,8 +15,11 @@ class CsvUtility {
 
   async readFileFromS3(s3Key, callback) {
     try {
+      // lazy import AWS SDK to avoid requiring it at module import time
+      const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+
       const params = {
-        Bucket: secrets.awsConfig.bucketName,
+        Bucket: env.awsBucketName || env.awsBucket || env.awsBucketName,
         Key: s3Key,
       };
       const s3Client = S3Utility.getS3Client();
@@ -51,7 +54,16 @@ class CsvUtility {
       let totalDataRowsProcessed = 0;
       const headerCount = 1;
 
-      return new Promise((resolve, reject) => {
+      return new Promise(async (resolve, reject) => {
+        // lazy-import csv-parser so tests that don't need actual parsing won't fail
+        let csvParser;
+        try {
+          const csvModule = await import('csv-parser');
+          csvParser = csvModule.default || csvModule;
+        } catch (e) {
+          return reject(new Error('csv-parser is required to parse CSV files'));
+        }
+
         fileReadStream.pipe(csvParser({
           mapHeaders: this._mapHeaders
         }))

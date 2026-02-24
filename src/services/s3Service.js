@@ -1,15 +1,15 @@
 import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
-
-import secrets from '../../config/secrets.js';
+import { LogFactory } from '../../lib/logger.js';
+import env from '../../config/env.js';
 
 class S3Service {
 
   getS3Client() {
     return new S3Client({
-      region: secrets.awsConfig.region,
+      region: env.awsRegion || env.aws_region,
       credentials: {
-        accessKeyId: secrets.awsConfig.accessKeyId,
-        secretAccessKey: secrets.awsConfig.secretAccessKey,
+        accessKeyId: env.awsAccessKeyId || env.aws_access_key_id,
+        secretAccessKey: env.awsSecretAccessKey || env.aws_secret_access_key,
       },
     });
   }
@@ -25,7 +25,7 @@ class S3Service {
       console.log('folderPath', folderPath);
 
       const params = {
-        Bucket: secrets.awsConfig.bucketName,
+        Bucket: env.awsBucketName || env.aws_bucket_name,
         Key: `${folderPath}/${originalName}`,
         Body: Buffer.from(bytesArray),
       };
@@ -35,8 +35,9 @@ class S3Service {
       const s3 = this.getS3Client();
       const data = await s3.send(new PutObjectCommand(params));
       if (data.$metadata.httpStatusCode === 200) {
-        const region = secrets.awsConfig.region;
-        url = `https://s3.${region}.amazonaws.com/${secrets.awsConfig.bucketName}/${folderPath}/${originalName}`;
+        const region = env.awsRegion || env.aws_region;
+        const bucket = env.awsBucketName || env.aws_bucket_name;
+        url = `https://s3.${region}.amazonaws.com/${bucket}/${folderPath}/${originalName}`;
         console.log('File URL:', url);
       } else {
         console.log('Error uploading file to S3');
@@ -45,6 +46,7 @@ class S3Service {
 
       return {s3Location: url, s3Key: s3Key};
     } catch (err) {
+      const logger = LogFactory.getLogger('S3Service');
       logger.error(err);
       throw new Error('Error uploading file to S3');
     }
@@ -62,6 +64,7 @@ class S3Service {
 
       return data;
     } catch (err) {
+      const logger = LogFactory.getLogger('S3Service');
       logger.error(err);
       throw new Error('Error downloading file from S3');
     }
