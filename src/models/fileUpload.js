@@ -10,10 +10,8 @@ const FILE_UPLOAD_STATUSES = {
 };
 
 const FILE__SCHEMA_NAME = {
- 
+  // kept for backward-compatibility; can be extended by app code
   bse_scheme: 'BSE_SCHEME',
- 
-  
 };
 
 class FileUpload extends Model { }
@@ -37,14 +35,15 @@ FileUpload.init({
     allowNull: false,
     defaultValue: 'processing'
   },
+  // make file_type generic string to support arbitrary file types
   file_type: {
-    type: DataTypes.ENUM( 'excel', 'csv', 'dbf'),
+    type: DataTypes.STRING,
     allowNull: false,
-    defaultValue: 'document'
   },
+  // make schema_name a free-form string to allow generic uploads
   schema_name: {
-    type: DataTypes.ENUM(...Object.values(FILE__SCHEMA_NAME)),
-    allowNull: false,
+    type: DataTypes.STRING,
+    allowNull: true,
   },
   s3_location: {
     type: DataTypes.STRING,

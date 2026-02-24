@@ -1,16 +1,27 @@
 import Redis from 'ioredis';
-import config from '../config/env.js';
+import config from './env.js';
+import { isTestEnv } from '../src/utils/env.js';
 
-let redisConf = {
-  host: config.redisHost,
-  port: config.redisPort, 
-};
+let redisClient;
 
-const redisClient = new Redis(redisConf);
+if (isTestEnv()) {
+  // lightweight dummy to avoid opening network connections during tests
+  redisClient = {
+    on: () => {},
+    quit: async () => {},
+    disconnect: () => {},
+  };
+} else {
+  const redisConf = {
+    host: config.redisHost,
+    port: config.redisPort,
+  };
 
-redisClient.on('error', (err) => {
-  console.log(err.message);
-});
+  redisClient = new Redis(redisConf);
 
+  redisClient.on('error', (err) => {
+    console.log(err.message);
+  });
+}
 
 export default redisClient;

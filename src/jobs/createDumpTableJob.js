@@ -24,7 +24,7 @@ class CreateDumpTableJob extends BaseJob {
       queueName: 'create-dump-table-queue',
       jobOptions: {
         delay: 5000,
-        attempts: 3,
+        attempts: 1, // as per your conv..
       },
     });
   }
@@ -41,12 +41,10 @@ class CreateDumpTableJob extends BaseJob {
 
     if (!this.fileUpload) throw new Error(`cannot find fileUploadId: ${fileUploadId}`);
 
-    this.dateColumns = DATE_COLUMNS[this.fileUpload.schema_name];
-    this.fieldMapper = ROWS_MODEL_FIELD_MAPPER[this.fileUpload.schema_name];
-
-    if (!this.fieldMapper ||!this.dateColumns ){
-      throw new Error(`Unsupported upload type fileUploadId: ${fileUploadId}`);
-    }
+    // allow generic uploads: if no mapper or date columns are configured,
+    // process CSVs without strict mapping/validation, or handle non-CSV files generically
+    this.dateColumns = DATE_COLUMNS[this.fileUpload.schema_name] || [];
+    this.fieldMapper = ROWS_MODEL_FIELD_MAPPER[this.fileUpload.schema_name] || null;
 
 
     await FileUpload.update(
@@ -57,15 +55,22 @@ class CreateDumpTableJob extends BaseJob {
     );
 
 
-    const expectedHeaders = Object.values(this.fieldMapper);
-    let totalDataRowsProcessed;
-    switch (this.fileUpload.file_type) {
-      case 'csv':
-        const csvUtility = new CsvUtility(this.dateColumns, expectedHeaders);
-        totalDataRowsProcessed = await csvUtility.readFileFromS3(this.fileUpload.s3_key, this.bulkCreateDumpTable.bind(this));
-        break;
-      default:
-        throw new Error(`Unsupported file type: ${this.fileUpload.file_type}`);
+    const expectedHeaders = this.fieldMapper ? Object.values(this.fieldMapper) : [];
+    let totalDataRowsProcessed = 0;
+
+    if (this.fileUpload.file_type === 'csv') {
+      const csvUtility = new CsvUtility(this.dateColumns, expectedHeaders);
+      totalDataRowsProcessed = await csvUtility.readFileFromS3(this.fileUpload.s3_key, this.bulkCreateDumpTable.bind(this));
+    } else {
+      // For non-csv files, create a single dump row that contains metadata about the file
+      const singleRecord = {
+        row_num: 1,
+        file_name: this.fileUpload.filename,
+        s3_key: this.fileUpload.s3_key,
+        s3_location: this.fileUpload.s3_location,
+      };
+      await this.bulkCreateDumpTable([singleRecord]);
+      totalDataRowsProcessed = 1;
     }
 
     const totalRecordsInDb = await BscDumpRow.count({
@@ -86,27 +91,26 @@ class CreateDumpTableJob extends BaseJob {
       { where: { id: fileUploadId } }
     );
 
-    const jobObj = new CreateDataFeederJob();
-    await jobObj.add({
-      requestId: this.fileUpload.id,
-      requestSchema: this.fileUpload.schema_name,
-    });
+    // downstream processing can be enqueued here if needed
   }
 
   async bulkCreateDumpTable(batch) {
     try {
       const attributes = batch.map(row => {
+        // If a mapper is configured, map known fields; otherwise store the full row JSON
         const mappedRecord = {};
 
-        for (const commonField in this.fieldMapper) {
-          const uploadField = this.fieldMapper[commonField];
-          mappedRecord[commonField] = row[uploadField];
+        if (this.fieldMapper) {
+          for (const commonField in this.fieldMapper) {
+            const uploadField = this.fieldMapper[commonField];
+            mappedRecord[commonField] = row[uploadField];
+          }
         }
 
         return ({
           ...mappedRecord,
           request_id: this.fileUpload.id,
-          request_schema: this.fileUpload.schema_name,
+          request_schema: this.fileUpload.schema_name || this.fileUpload.file_type,
           row_num: row['row_num'],
           raw_data: row,
         });
