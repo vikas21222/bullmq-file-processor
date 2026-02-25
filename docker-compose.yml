@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: bullmq-postgres
+    environment:
+      POSTGRES_USER: ${DB_PSQL_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PSQL_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_PSQL_DATABASE:-file_processor}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_PSQL_USERNAME:-postgres} -d ${DB_PSQL_DATABASE:-file_processor}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bullmq-network
+
+  # Redis Cache & Queue Store
+  redis:
+    image: redis:7-alpine
+    container_name: bullmq-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bullmq-network
+
+  # Node.js Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bullmq-app
+    environment:
+      NODE_ENV: development
+      DB_PSQL_USERNAME: ${DB_PSQL_USERNAME:-postgres}
+      DB_PSQL_PASSWORD: ${DB_PSQL_PASSWORD:-postgres}
+      DB_PSQL_DATABASE: ${DB_PSQL_DATABASE:-file_processor}
+      DB_PSQL_PORT: 5432
+      DB_PG_PRIMARY: postgres
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_BUCKET_NAME: ${AWS_BUCKET_NAME:-}
+      BULLUI_USER: ${BULLUI_USER:-admin}
+      BULLUI_PASS: ${BULLUI_PASS:-password}
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run dev
+    networks:
+      - bullmq-network
+
+  # Optional: Redis Commander for Redis GUI
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: bullmq-redis-commander
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - bullmq-network
+
+  # Optional: pgAdmin for PostgreSQL GUI
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: bullmq-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - bullmq-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  bullmq-network:
+    driver: bridge
