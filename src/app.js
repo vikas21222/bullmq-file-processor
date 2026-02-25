@@ -3,14 +3,17 @@ import express, { json } from 'express';
 import CreateDumpTableQueueProcessor from './queuesProcessors/createDumpTableQueueProcessor';
 import uploadRoute from './routes/fileUploadRouter';
 import bullBoardRoute from './routes/bullBoard.js';
+import monitoringRoute from './routes/monitoringRouter.js';
 import { isNotTestEnv } from './utils/env.js';
 
 const app = express();
 app.use(json());
 // Mount upload router which handles its own multer file handling
 app.use('/upload', uploadRoute);
-// mount Bull Board UI
+// Mount Bull Board UI
 app.use('/', bullBoardRoute);
+// Mount monitoring endpoints
+app.use('/metrics', monitoringRoute);
 
 const queueProcessors = [
   CreateDumpTableQueueProcessor,

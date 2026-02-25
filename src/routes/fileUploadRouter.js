@@ -49,6 +49,6 @@ const uploadSingle = multer({
 const fileUploadRouter = express.Router();
 const controller = new FileUploadController();
 fileUploadRouter.get('/', controller.index.bind(controller));
-fileUploadRouter.post('/upload', uploadSingle.single('file'), controller.create.bind(controller));
+fileUploadRouter.post('/', uploadSingle.single('file'), controller.create.bind(controller));
 
 export default fileUploadRouter;
