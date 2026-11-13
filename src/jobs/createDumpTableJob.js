@@ -110,6 +110,7 @@ class CreateDumpTableJob extends BaseJob {
         return ({
           ...mappedRecord,
           request_id: this.fileUpload.id,
+          request_type: this.fileUpload.file_type,
           request_schema: this.fileUpload.schema_name || this.fileUpload.file_type,
           row_num: row['row_num'],
           raw_data: row,
