@@ -112,6 +112,24 @@ class CsvUtility {
       throw new Error('No headers found');
     }
 
+    const emptyHeaderIndex = headers.findIndex((header) => !header);
+    if (emptyHeaderIndex !== -1) {
+      throw new Error(`Empty header found at column ${emptyHeaderIndex + 1}`);
+    }
+
+    const seenHeaders = new Set();
+    const duplicateHeaders = new Set();
+    for (const header of headers) {
+      if (seenHeaders.has(header)) {
+        duplicateHeaders.add(header);
+      }
+      seenHeaders.add(header);
+    }
+
+    if (duplicateHeaders.size > 0) {
+      throw new Error(`Duplicate headers found: ${[...duplicateHeaders].join(', ')}`);
+    }
+
     if (!Array.isArray(this.expectedHeaders) || this.expectedHeaders.length === 0) {
       return;
     }
