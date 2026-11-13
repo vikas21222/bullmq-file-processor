@@ -6,7 +6,7 @@ class BaseJob {
   constructor(options) {
     this.queueName = options.queueName;
     this.logger = LogFactory.getLogger(this.constructor.name);
-    const defaultJobOptions={
+    const defaultJobOptions = {
       backoff: {
         type: 'exponential',
         delay: 5000,
@@ -17,19 +17,23 @@ class BaseJob {
         age: 2 * 24 * 3600,
       },
     };
-    const specificJobOption=options.jobOptions;
-    this.JOB_OPTIONS= {...defaultJobOptions, ...specificJobOption};
-    if (this.constructor == BaseJob) {
-      throw new Error('Abstract classes can\'t be instantiated.');
+    const specificJobOption = options.jobOptions;
+    this.JOB_OPTIONS = { ...defaultJobOptions, ...specificJobOption };
+    if (this.constructor === BaseJob) {
+      throw new Error("Abstract classes can't be instantiated.");
     }
   }
 
   async add(data) {
+    const queue = new Queue(this.queueName, { connection: redisClient });
+
     try {
-      const queue = new Queue(this.queueName, { connection: redisClient });
-      await queue.add(this.constructor.name, data, this.JOB_OPTIONS);
+      return await queue.add(this.constructor.name, data, this.JOB_OPTIONS);
     } catch (error) {
       this.logger.error(`Failed to add job to the queue ${this.queueName}: ${error.message}`);
+      throw error;
+    } finally {
+      await queue.close();
     }
   }
 
@@ -39,4 +43,3 @@ class BaseJob {
 }
 
 export default BaseJob;
-
