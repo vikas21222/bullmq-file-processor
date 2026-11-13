@@ -56,6 +56,28 @@ describe('CsvUtility streaming and batching', () => {
     ).rejects.toThrow('Missing headers: amount');
   });
 
+  it('rejects duplicate headers after normalization', async () => {
+    const utility = new CsvUtility([], []);
+
+    await expect(
+      utility._readCsvFile(
+        Readable.from(['Name,name\\nVikas,Rahul']),
+        async () => {},
+      ),
+    ).rejects.toThrow('Duplicate headers found: name');
+  });
+
+  it('rejects empty header names', async () => {
+    const utility = new CsvUtility([], []);
+
+    await expect(
+      utility._readCsvFile(
+        Readable.from(['name,\\nVikas,Rahul']),
+        async () => {},
+      ),
+    ).rejects.toThrow('Empty header found at column 2');
+  });
+
   it('propagates batch processing errors to the caller', async () => {
     const utility = new CsvUtility([], [], 1);
 
