@@ -6,7 +6,7 @@ import app from '../src/app.js';
 describe('CSV Upload success (test mode)', () => {
   it('accepts CSV and returns 201 with file_upload_id', async () => {
     const res = await request(app)
-      .post('/upload/upload')
+      .post('/upload')
       .field('upload_type', 'bse_scheme')
       .attach('file', 'test/fixtures/sample.csv');
 
