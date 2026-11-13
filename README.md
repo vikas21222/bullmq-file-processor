@@ -9,7 +9,7 @@ A Node.js asynchronous file-processing pipeline built with Express, BullMQ, Redi
 - Streaming CSV parsing instead of loading the complete file into memory.
 - Sequential batch callbacks (default: 1,000 rows per batch) with stream backpressure.
 - Configurable date conversion and required-header validation.
-- BSC200 row-level validation for required fields, numeric minimum amount, and registration date.
+- BSC200 row-level validation during file processing.
 - Invalid BSC200 rows are retained with FAILED status and validation remarks; valid rows remain PENDING.
 - Original CSV cell values are preserved in raw_data for audit/debugging.
 - Queue monitoring UI at /bullui, protected with HTTP Basic Auth.
@@ -72,8 +72,8 @@ Upload a CSV file using multipart form data. The file field is required; upload_
 Example:
 
 \`\`\`bash
-curl -F "file=@/path/to/data.csv" \\\
-     -F "upload_type=bse_scheme" \\\
+curl -F "file=@/path/to/data.csv" \\\\
+     -F "upload_type=bse_scheme" \\\\
      http://localhost:3000/upload
 \`\`\`
 
@@ -84,8 +84,8 @@ curl -F "file=@/path/to/data.csv" \\\
 - The default batch size is 1,000 rows. It can be overridden when constructing CsvUtility.
 - The next batch is not consumed until the current callback finishes. This provides backpressure when database writes are slower than file parsing.
 - Stream, parsing, header-validation, and batch callback errors are propagated to the job processor.
-- BSC200 CSV files must include the brcode, scheme_code, min_amount, and reg_date headers.
-- Each BSC200 data row is validated independently. A row with missing required values, a non-numeric min_amount, or an invalid reg_date is stored as FAILED with a reason in remarks. Valid rows are stored as PENDING.
+- BSC200 row-level validation is applied during processing. See the [sample BSC200 CSV](examples/bsc200-sample.csv) for an example input file.
+- Invalid BSC200 rows are stored with FAILED status and validation remarks; valid rows remain PENDING.
 - The upload is marked completed once all parsed rows (including invalid rows retained as FAILED) have been persisted.
 
 ## Queue UI
