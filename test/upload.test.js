@@ -6,7 +6,7 @@ import app from '../src/app.js';
 describe('Upload endpoint', () => {
   it('rejects non-csv uploads with 422 UnprocessableError', async () => {
     const res = await request(app)
-      .post('/upload/upload')
+      .post('/upload')
       .attach('file', 'test/fixtures/dummy.pdf');
 
     expect(res.status).toBe(422);
