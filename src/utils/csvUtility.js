@@ -8,7 +8,7 @@ const DEFAULT_BATCH_SIZE = 1000;
 
 function parseValidDate(value) {
   const converted = dateUtility.convertDateFormat(value);
-  const match = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(converted || '');
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(converted || '');
 
   if (!match) return null;
 
