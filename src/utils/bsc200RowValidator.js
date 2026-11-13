@@ -1,5 +1,5 @@
 const REQUIRED_FIELDS = ['brcode', 'scheme_code', 'min_amount', 'reg_date'];
-const NUMBER_PATTERN = /^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)$/;
+const NUMBER_PATTERN = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
 
 export function validateBsc200Row(row) {
   const errors = [];
