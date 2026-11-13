@@ -68,12 +68,16 @@ class CsvUtility {
       });
 
       fileReadStream.once('error', onSourceError);
+
+      // Attach the async iterator before piping: a fast source can emit a
+      // header-validation error immediately when pipe() starts parsing.
+      const parserIterator = parser[Symbol.asyncIterator]();
       fileReadStream.pipe(parser);
 
       let batch = [];
       let totalDataRowsProcessed = 0;
 
-      for await (const row of parser) {
+      for await (const row of { [Symbol.asyncIterator]: () => parserIterator }) {
         if (!headersValidated) {
           throw new Error('CSV headers could not be validated');
         }
@@ -110,6 +114,24 @@ class CsvUtility {
   _validateHeaders(headers) {
     if (!Array.isArray(headers) || headers.length === 0) {
       throw new Error('No headers found');
+    }
+
+    const emptyHeaderIndex = headers.findIndex((header) => !header);
+    if (emptyHeaderIndex !== -1) {
+      throw new Error(`Empty header found at column ${emptyHeaderIndex + 1}`);
+    }
+
+    const seenHeaders = new Set();
+    const duplicateHeaders = new Set();
+    for (const header of headers) {
+      if (seenHeaders.has(header)) {
+        duplicateHeaders.add(header);
+      }
+      seenHeaders.add(header);
+    }
+
+    if (duplicateHeaders.size > 0) {
+      throw new Error(`Duplicate headers found: ${[...duplicateHeaders].join(', ')}`);
     }
 
     if (!Array.isArray(this.expectedHeaders) || this.expectedHeaders.length === 0) {
