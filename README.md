@@ -1,130 +1,134 @@
 # BullMQ File Processing Pipeline 🚀
 
-This project demonstrates how to build a scalable, asynchronous file processing pipeline using BullMQ, S3, Sequelize, and PostgreSQL.
+A Node.js asynchronous file-processing pipeline built with Express, BullMQ, Redis, AWS S3, Sequelize, and PostgreSQL.
 
-## 🔧 Features
+## Current features
 
-- Upload CSV/Excel/DBF files via an API
-- Store files in S3
-- Track file processing status in PostgreSQL
-- Background validation and mapping jobs using BullMQ
-- Final data storage in a  table
+- CSV upload API with S3 storage and PostgreSQL upload tracking.
+- Background processing through BullMQ.
+- Streaming CSV parsing instead of loading the complete file into memory.
+- Sequential batch callbacks (default: 1,000 rows per batch) with stream backpressure.
+- Configurable date conversion and required-header validation.
+- Queue monitoring UI at /bullui, protected with HTTP Basic Auth.
 
-## 📦 Tech Stack
+> Excel and DBF uploads are not supported yet. The upload API currently accepts CSV files only.
+
+## Tech stack
 
 - Node.js + Express
 - PostgreSQL + Sequelize
 - BullMQ + Redis
 - AWS S3
-- Multer for file upload
+- Multer
+- csv-parser
 
-# BullMQ File Processing Pipeline
+## Prerequisites
 
-Lightweight pipeline that accepts CSV uploads, stores files in S3, enqueues background jobs with BullMQ, and persists parsed rows into a dump table via Sequelize/Postgres.
-
-Key features
-
-- CSV upload endpoint with S3 storage and processing tracking
-- Background job workers using BullMQ + Redis
-- CSV parsing with configurable date handling and header validation
-- UI for monitoring queues (`/bullui`) protected with basic auth
-
-Prerequisites
-
-- Node 18+ and npm
+- Node.js 18+ and npm
 - PostgreSQL
 - Redis
-- (Optional) AWS S3 credentials to enable S3 uploads
+- AWS S3 credentials for S3 uploads
 
-Quickstart
+## Quickstart
 
 1. Install dependencies:
 
-```bash
+\`\`\`bash
 npm install
-```
+\`\`\`
 
-2. Copy and edit environment variables:
+2. Copy and configure environment variables:
 
-```bash
+\`\`\`bash
 cp .env.example .env
-# then edit .env to set DB, Redis and AWS credentials
-```
+# Configure database, Redis and AWS S3 settings in .env
+\`\`\`
 
-3. Start the app:
+3. Run database migrations:
 
-```bash
-# production-style
-npm start
-
-# development with auto-reload
-npm run dev
-```
-
-API
-
-- Upload endpoint: POST `/upload/upload` — multipart form with field `file` and optional `upload_type`.
-
-Example (CSV):
-
-```bash
-curl -F "file=@/path/to/data.csv" -F "upload_type=bse_scheme" http://localhost:3000/upload/upload
-```
-
-Queue UI (Bull UI)
-
-- Installed and mounted at: `http://localhost:3000/bullui`
-- Protected with HTTP Basic Auth using `BULLUI_USER` and `BULLUI_PASS` (defaults in `.env.example`).
-
-Database migrations
-
-This repo uses Sequelize migrations. To create the tables run:
-
-```bash
-npm install
+\`\`\`bash
 npm run db:migrate
-```
+\`\`\`
 
-To undo last migration:
+4. Start the application:
 
-```bash
+\`\`\`bash
+npm start
+# or
+npm run dev
+\`\`\`
+
+## API
+
+Upload a CSV file using multipart form data. The file field is required; upload_type is optional.
+
+- **Method:** POST
+- **Path:** /upload
+- **Content-Type:** multipart/form-data
+
+Example:
+
+\`\`\`bash
+curl -F "file=@/path/to/data.csv" \\
+     -F "upload_type=bse_scheme" \\
+     http://localhost:3000/upload
+\`\`\`
+
+## CSV processing behaviour
+
+- The parser reads from the S3 readable stream.
+- Rows are consumed asynchronously and passed to the database callback in batches.
+- The default batch size is 1,000 rows. It can be overridden when constructing CsvUtility.
+- The next batch is not consumed until the current callback finishes. This provides backpressure when database writes are slower than file parsing.
+- Stream, parsing, header-validation, and batch callback errors are propagated to the job processor.
+
+## Queue UI
+
+- URL: http://localhost:3000/bullui
+- Configure BULLUI_USER and BULLUI_PASS in .env.
+- Change default credentials before deploying.
+
+## Database migrations
+
+\`\`\`bash
+npm run db:migrate
 npm run db:migrate:undo
-```
+\`\`\`
 
-Testing
+## Tests
 
-Run automated tests (Jest + Supertest):
+Run the automated Jest + Supertest suite:
 
-```bash
+\`\`\`bash
 npm test
-```
+\`\`\`
 
-Notes about test mode
+## Useful scripts
 
-- When `NODE_ENV=test` the app avoids starting workers and the HTTP server and the service layer uses lightweight test-mode shortcuts so tests run reliably without AWS/Redis/Postgres.
+- npm start — start the API application
+- npm run dev — start the application with nodemon
+- npm test — run tests
+- npm run db:migrate — apply Sequelize migrations
+- npm run db:migrate:undo — undo the last migration
+- npm run worker:csv — start the standalone CSV worker process
 
-Useful scripts
+## Development
 
-- `npm start` — run the app
-- `npm run dev` — run with `nodemon`
-- `npm test` — run test suite
-- `npm run db:migrate` — run Sequelize migrations
-- `npm run db:migrate:undo` — undo last migration
+- Application source is under src/.
+- Queue processors are under src/queuesProcessors/.
+- Jobs are under src/jobs/.
+- Worker processes are under src/workers/.
 
-Development
+## Security
 
-- Source is under `src/`.
-- Add queue processors in `src/queuesProcessors/` and jobs in `src/jobs/`.
+- Never commit real credentials. Keep secrets in environment variables or a secrets manager.
+- Protect the Bull Board UI with non-default credentials.
+- Keep .env out of version control.
 
-Security
+## Contributing
 
-- Keep real credentials out of the repository. Use `.env` and store secrets in your CI provider or vault.
-- The Bull UI is protected by `express-basic-auth` — change the default credentials in `.env` before deploying.
+Open a pull request with a clear description and tests for new behaviour.
 
-Contributing
+## License
 
-- Open a PR with clear description and tests for new behaviour.
-
-License
-
-- ISC
+ISC
