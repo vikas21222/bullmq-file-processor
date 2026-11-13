@@ -43,6 +43,20 @@ describe('CsvUtility streaming and batching', () => {
 
     expect(total).toBe(1);
     expect(receivedRows).toEqual([{ name: 'Vikas', amount: '100', row_num: 1 }]);
+    expect(receivedRows[0].raw_data).toEqual({ name: ' Vikas ', amount: ' 100 ' });
+  });
+
+  it('stores invalid dates as null while preserving their original CSV value', async () => {
+    const utility = new CsvUtility(['reg_date'], ['reg_date'], 10);
+    let receivedRows = [];
+
+    await utility._readCsvFile(
+      Readable.from(['reg_date\n31/02/2024']),
+      async (batch) => { receivedRows = batch; },
+    );
+
+    expect(receivedRows[0].reg_date).toBeNull();
+    expect(receivedRows[0].raw_data).toEqual({ reg_date: '31/02/2024' });
   });
 
   it('rejects files that are missing required headers', async () => {

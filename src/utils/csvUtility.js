@@ -6,6 +6,28 @@ import env from '../../config/env.js';
 
 const DEFAULT_BATCH_SIZE = 1000;
 
+function parseValidDate(value) {
+  const converted = dateUtility.convertDateFormat(value);
+  const match = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(converted || '');
+
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsedDate = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    parsedDate.getUTCFullYear() !== year
+    || parsedDate.getUTCMonth() !== month - 1
+    || parsedDate.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return parsedDate;
+}
+
 class CsvUtility {
   constructor(dateColumns = [], expectedHeaders = [], batchSize = DEFAULT_BATCH_SIZE) {
     this.dateColumns = dateColumns;
@@ -146,6 +168,7 @@ class CsvUtility {
 
   _processDataRow(row, rowNum) {
     const rowJson = {};
+    const originalData = { ...row };
 
     for (const header in row) {
       if (!header) continue;
@@ -158,11 +181,10 @@ class CsvUtility {
 
       if (this.dateColumns.includes(header) && typeof cellValue === 'string') {
         try {
-          const converted = dateUtility.convertDateFormat(cellValue);
-          const parsedDate = converted ? new Date(converted) : null;
-          rowJson[header] = parsedDate && !Number.isNaN(parsedDate.getTime())
-            ? parsedDate
-            : null;
+          rowJson[header] = parseValidDate(cellValue);
+          if (!rowJson[header]) {
+            this.logger.warn(`Failed to parse date for header ${header}: ${cellValue}`);
+          }
         } catch (error) {
           this.logger.warn(`Failed to parse date for header ${header}: ${cellValue}`);
           rowJson[header] = null;
@@ -174,6 +196,13 @@ class CsvUtility {
     }
 
     rowJson.row_num = rowNum;
+    // Keep source CSV values available for persistence without changing the
+    // enumerable row shape consumed by existing batch callbacks.
+    Object.defineProperty(rowJson, 'raw_data', {
+      value: originalData,
+      enumerable: false,
+    });
+
     return rowJson;
   }
 }
