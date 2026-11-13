@@ -68,12 +68,16 @@ class CsvUtility {
       });
 
       fileReadStream.once('error', onSourceError);
+
+      // Attach the async iterator before piping: a fast source can emit a
+      // header-validation error immediately when pipe() starts parsing.
+      const parserIterator = parser[Symbol.asyncIterator]();
       fileReadStream.pipe(parser);
 
       let batch = [];
       let totalDataRowsProcessed = 0;
 
-      for await (const row of parser) {
+      for await (const row of { [Symbol.asyncIterator]: () => parserIterator }) {
         if (!headersValidated) {
           throw new Error('CSV headers could not be validated');
         }
