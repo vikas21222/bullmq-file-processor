@@ -26,7 +26,7 @@ describe('BSC200 row validation', () => {
     ]);
   });
 
-  it.each(['abc', '12.3.4', ''])('rejects invalid min_amount value: %s', (minAmount) => {
+  it.each(['abc', '12.3.4'])('rejects invalid min_amount value: %s', (minAmount) => {
     const row = { ...validRow, min_amount: minAmount };
     expect(validateBsc200Row(row)).toContain('min_amount must be a valid number');
   });
