@@ -61,7 +61,7 @@ describe('CsvUtility streaming and batching', () => {
 
     await expect(
       utility._readCsvFile(
-        Readable.from(['Name,name\\nVikas,Rahul']),
+        Readable.from(['Name,name\nVikas,Rahul']),
         async () => {},
       ),
     ).rejects.toThrow('Duplicate headers found: name');
@@ -72,7 +72,7 @@ describe('CsvUtility streaming and batching', () => {
 
     await expect(
       utility._readCsvFile(
-        Readable.from(['name,\\nVikas,Rahul']),
+        Readable.from(['name,\nVikas,Rahul']),
         async () => {},
       ),
     ).rejects.toThrow('Empty header found at column 2');
